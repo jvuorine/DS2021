@@ -45,7 +45,6 @@ class Client():
                 await asyncio.wait_for(self.recv_message(connection),timeout=0.1)
             except asyncio.TimeoutError:
                 pass
-            
             # if the game is played and a result iss received, print it and go back to main loop
             if self.receive_message in self.game_states:
                 print("\n" + self.receive_message)
@@ -85,6 +84,10 @@ class Client():
                         print("Connection closed")
                         break
                 await self.recv_message(connection)
+            elif self.receive_message == "Game is full, wait until it finishes":
+                print(self.receive_message)
+                await self.sendMessage("ready")
+                await self.recv_message(connection)
             # prints messages for "waiting a player" and "waiting for other players move"
             else:
                 if i == 0:
@@ -118,8 +121,9 @@ class Client():
         l_min = None
         l_max = 0.0
         l_all = 0
-        prev_id = -1
+        prev_id = 0
         packets_lost = 0
+        # send 5 pings, measure time between sent and received messages
         for i in range(5):
             start = time.time()
             await self.sendMessage("ping")
@@ -128,7 +132,7 @@ class Client():
             elapsed = end - start
 
             msg = json.loads(msg)
-            if prev_id - msg["id"] != -1:
+            if prev_id - msg["id"] != 0:
                 packets_lost += 1
             if i == 0:
                 l_min = elapsed
@@ -137,12 +141,14 @@ class Client():
                 l_max = elapsed
             elif elapsed < l_min:
                 l_min = elapsed
+
             l_all += elapsed
             prev_id += 1
             print(f"round trip time: {elapsed * 1000:.02f} ms")
 
             await asyncio.sleep(0.1)
 
+        # print the information to the user
         l_avg = l_all / 5
         print(f"\nPackets: Sent = 5, Received = {5-packets_lost}, Lost = {packets_lost} ({packets_lost / 5 * 100:.2f}% loss)")
         print(f"Round trip time")
